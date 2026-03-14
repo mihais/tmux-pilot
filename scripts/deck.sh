@@ -78,8 +78,14 @@ collect_panes() {
     if [[ -n "$needs_help" ]]; then
       status="waiting"
     fi
-    # @pilot-owner stores UUID directly
+    # @pilot-owner stores UUID. Legacy panes may
+    # still have pane IDs (%NNN) — resolve those.
     local owner_uuid="$owner"
+    if [[ "$owner" == %* ]]; then
+      owner_uuid=$(command tmux display-message \
+        -t "$owner" -p '#{@pilot-uuid}' \
+        2>/dev/null) || owner_uuid="$owner"
+    fi
     local mem cpu
     mem=$(pane_tree_mem "$pane_pid" \
       <<< "$ps_data")
