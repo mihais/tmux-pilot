@@ -33,13 +33,17 @@ fi
 # Remote pane: fetch metadata + content via SSH
 if [[ -n "$host" ]]; then
   session="${target%%:*}"
-  D="@@@"
+  D="<~>"
+  B=$'\033[1m'
+  R=$'\033[0m'
+  DM=$'\033[2m'
+  pane_num="${target#*:}"
   # Single SSH: metadata + pane capture
   remote_data=$(ssh \
     -o ConnectTimeout=2 -o BatchMode=yes \
     "$host" "
     tmux display-message -t '$target' -p \
-      '#{window_name}${D}#{@pilot-agent}${D}#{@pilot-desc}${D}#{@pilot-status}${D}#{@pilot-tier}${D}#{@pilot-trust}${D}#{@pilot-owner}${D}#{@pilot-owner-session}${D}#{@pilot-issue}${D}#{@pilot-worktree}${D}#{@pilot-repo}${D}#{@pilot-review-target}${D}#{@pilot-review-context}${D}#{pane_current_command}${D}#{pane_current_path}' 2>/dev/null
+      '#{window_name}${D}#{@pilot-agent}${D}#{@pilot-desc}${D}#{@pilot-status}${D}#{@pilot-tier}${D}#{@pilot-trust}${D}#{@pilot-owner}${D}#{@pilot-uuid}${D}#{@pilot-issue}${D}#{@pilot-worktree}${D}#{@pilot-repo}${D}#{@pilot-review-target}${D}#{@pilot-review-context}${D}#{pane_current_command}${D}#{pane_current_path}' 2>/dev/null
     echo '${D}CAPTURE${D}'
     tmux capture-pane -t '$target' -p -S -50 \
       2>/dev/null
@@ -55,46 +59,60 @@ if [[ -n "$host" ]]; then
   # Parse metadata
   IFS="$D" read -r r_window r_agent r_desc \
     r_status r_tier r_trust r_owner \
-    r_owner_ses r_issue r_worktree r_repo \
+    r_uuid r_issue r_worktree r_repo \
     r_review_target r_review_ctx \
     r_cmd r_path \
     <<< "$meta"
 
-  # Display header
-  printf '\033[1mTARGET:\033[0m  %s@%s\n' \
-    "$target" "$host"
-  printf '\033[1mWINDOW:\033[0m  %s\n' \
-    "${r_window:-—}"
-  printf '\033[1mPATH:\033[0m    %s\n' \
-    "${r_path:-—}"
-  printf '\033[1mCOMMAND:\033[0m %s\n' \
-    "${r_cmd:-—}"
-  [[ -n "$r_agent" ]] && \
-    printf '\033[1mAGENT:\033[0m   %s\n' "$r_agent"
+  # Display — same format as local panes
+  printf "${B}SES:${R} %s │ ${B}WIN:${R} %s │ ${B}PANE:${R} %s │ ${B}UUID:${R} %s │ ${B}HOST:${R} %s\n" \
+    "$session" "${r_window:-—}" "$pane_num" \
+    "${r_uuid:-—}" "$host"
+  [[ -n "$r_cmd" ]] && \
+    printf "${B}CMD:${R}      %s\n" "$r_cmd"
+  [[ -n "$r_agent" && "$r_agent" != "$r_cmd" ]] \
+    && printf "${B}AGENT:${R}    %s\n" "$r_agent"
   [[ -n "$r_desc" ]] && \
-    printf '\033[1mDESC:\033[0m    %s\n' "$r_desc"
-  [[ -n "$r_status" ]] && \
-    printf '\033[1mSTATUS:\033[0m  %s\n' "$r_status"
+    printf "${B}DESC:${R}     %s\n" "$r_desc"
+  # Merged status
+  r_stat=""
+  if [[ -n "$r_status" ]]; then
+    case "$r_status" in
+      working)  si="▶" ;; watching) si="▶" ;;
+      waiting)  si="!" ;; paused)   si="‖" ;;
+      done)     si="✓" ;; stuck)    si="!" ;;
+      *)        si="·" ;;
+    esac
+    r_stat="$si $r_status"
+  fi
+  line4=""
+  [[ -n "$r_stat" ]] && \
+    line4+="${B}STATUS:${R} ${r_stat}"
+  [[ -n "$r_owner" ]] && \
+    line4+=" │ ${B}OWNER:${R} ${r_owner}"
   [[ -n "$r_tier" ]] && \
-    printf '\033[1mTIER:\033[0m    %s\n' "$r_tier"
-  [[ -n "$r_trust" ]] && \
-    printf '\033[1mTRUST:\033[0m   %s\n' "$r_trust"
-  [[ -n "$r_owner_ses" ]] && \
-    printf '\033[1mOWNER:\033[0m   %s\n' \
-      "$r_owner_ses"
+    line4+=" │ ${B}TIER:${R} ${r_tier}"
+  [[ -n "$line4" ]] && printf '%s\n' "$line4"
+  line6=""
   [[ -n "$r_issue" ]] && \
-    printf '\033[1mISSUE:\033[0m   %s\n' "$r_issue"
-  [[ -n "$r_worktree" ]] && \
-    printf '\033[1mWORKTR:\033[0m  %s\n' \
-      "$r_worktree"
-  [[ -n "$r_repo" ]] && \
-    printf '\033[1mREPO:\033[0m    %s\n' "$r_repo"
+    line6+="${B}ISSUE:${R} ${r_issue}"
+  [[ -n "$r_trust" ]] && \
+    line6+=" │ ${B}TRUST:${R} ${r_trust}"
+  [[ -n "$line6" ]] && printf '%s\n' "$line6"
   [[ -n "$r_review_target" ]] && \
-    printf '\033[1mREVIEW:\033[0m  %s\n' \
+    printf "${B}REVIEW:${R}   %s\n" \
       "$r_review_target"
   [[ -n "$r_review_ctx" ]] && \
-    printf '\033[1mREV CTX:\033[0m %s\n' \
+    printf "${B}REV CTX:${R}  %s\n" \
       "$r_review_ctx"
+  [[ -n "$r_worktree" ]] && \
+    printf "${B}WORKTREE:${R} %s\n" \
+      "$r_worktree"
+  [[ -n "$r_repo" ]] && \
+    printf "${B}REPO:${R}     %s\n" "$r_repo"
+  [[ -n "$r_path" ]] && \
+    printf "${B}WORKDIR:${R}  ${DM}%s${R}\n" \
+      "$r_path"
 
   printf '─%.0s' {1..40}
   printf '\n'

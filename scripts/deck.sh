@@ -107,7 +107,7 @@ collect_panes() {
 # with empty CPU/MEM.
 collect_remote_panes() {
   local host="$1"
-  local D="@@@"
+  local D="<~>"
   local output
   output=$(ssh \
     -o ConnectTimeout=2 \
@@ -117,7 +117,7 @@ collect_remote_panes() {
     2>/dev/null) || return 0
   # Reformat with awk (preserves empty fields).
   # awk preserves empty fields (unlike bash read).
-  echo "$output" | awk -F'@@@' -v h="$host" \
+  echo "$output" | awk -F'<~>' -v h="$host" \
     'NF>0 {
       ses=$1; wi=$2; wn=$3; pi=$4; pa=$5
       ag=$6; st=$7; de=$8; pt=$9; ou=$10; su=$11
