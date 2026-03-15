@@ -306,15 +306,22 @@ def format_panes(
     Returns list of "idx\\tformatted_line" strings.
     Writes target\\tpath lines to data_file.
     """
-    # Split local and remote panes. Deduplicate:
-    # if a local pane has the same session name as
-    # a remote pane, keep only the local one (the
-    # remote is a stale or duplicate tmux session).
+    # Split local and remote panes. Deduplicate
+    # issue-* sessions: if a local pane has the same
+    # issue session name as a remote pane, keep only
+    # the local one (the remote is a stale duplicate).
+    # Non-issue sessions (watchdog, nexus, etc.) are
+    # kept on both machines since they're different
+    # services.
     local_panes = [p for p in panes if not p.host]
-    local_sessions = {p.session for p in local_panes}
+    local_issue_sessions = {
+        p.session for p in local_panes
+        if p.session.startswith("issue-")
+    }
     remote_panes = [
         p for p in panes
-        if p.host and p.session not in local_sessions
+        if p.host
+        and p.session not in local_issue_sessions
     ]
 
     win_counts, pane_counts = compute_counts(
