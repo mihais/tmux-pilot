@@ -29,9 +29,9 @@ while [[ $# -gt 0 ]]; do
     --session)    session_override="$2"; shift 2 ;;
     --host)       host="$2"; shift 2 ;;
     --mode)       mode="$2"; shift 2 ;;
-    --owner)      owner="$2"; shift 2 ;;
-                if [[ -n "$owner" && "$owner" =~ ^% ]]; then
-                  echo "WARNING: owner looks like a pane ID, should be a UUID" >&2
+    --owner)      owner="$2"; shift 2
+                if [[ "$owner" =~ ^% ]]; then
+                  echo "WARNING: owner looks like a pane ID ($owner), should be a UUID" >&2
                 fi ;;
     --tier)       tier="$2"; shift 2 ;;
     --trust)          trust="$2"; shift 2 ;;
